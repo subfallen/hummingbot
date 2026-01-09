@@ -8,6 +8,7 @@ from hummingbot.connector.exchange.lambdaplex import (
 from hummingbot.core.data_type.common import TradeType
 from hummingbot.core.data_type.order_book_message import OrderBookMessage, OrderBookMessageType
 from hummingbot.core.data_type.order_book_tracker_data_source import OrderBookTrackerDataSource
+from hummingbot.core.utils.async_utils import safe_gather
 from hummingbot.core.web_assistant.connections.data_types import RESTMethod, WSJSONRequest
 from hummingbot.core.web_assistant.web_assistants_factory import WebAssistantsFactory
 from hummingbot.core.web_assistant.ws_assistant import WSAssistant
@@ -30,12 +31,29 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         self._api_factory = api_factory
 
     async def get_last_traded_prices(self, trading_pairs: List[str], domain: Optional[str] = None) -> Dict[str, float]:
-        raise NotImplementedError
+        rest_assistant = await self._api_factory.get_rest_assistant()
+        exchange_pairs = await safe_gather(
+            *[
+                self._connector.exchange_symbol_associated_to_pair(trading_pair=trading_pair)
+                for trading_pair in trading_pairs
+            ]
+        )
+        data = await rest_assistant.execute_request(
+            url=web_utils.public_rest_url(path_url=CONSTANTS.LAST_PRICE_URL),
+            params={"sybmols": ",".join(exchange_pairs)},
+            method=RESTMethod.GET,
+            throttler_limit_id=CONSTANTS.LAST_PRICE_MULTI_LIMIT,
+        )
+        response = {
+            await self._connector.trading_pair_associated_to_exchange_symbol(symbol=entry["symbol"]): float(entry["price"])
+            for entry in data
+        }
+        return response
 
     async def _request_order_book_snapshot(self, trading_pair: str) -> Dict[str, Any]:
         params = {
             "symbol": await self._connector.exchange_symbol_associated_to_pair(trading_pair=trading_pair),
-            "limit": "1000"
+            "limit": "1000",
         }
 
         rest_assistant = await self._api_factory.get_rest_assistant()
@@ -43,7 +61,7 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             url=web_utils.public_rest_url(path_url=CONSTANTS.SNAPSHOT_PATH_URL),
             params=params,
             method=RESTMethod.GET,
-            throttler_limit_id=CONSTANTS.SNAPSHOT_PATH_URL,
+            throttler_limit_id=CONSTANTS.SNAPSHOT_THOUSAND_LIMIT,
         )
 
         return data

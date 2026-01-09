@@ -504,6 +504,7 @@ class LambdaplexExchange(ExchangePyBase):
             params={
                 "symbol": await self.exchange_symbol_associated_to_pair(trading_pair)
             },
+            limit_id=CONSTANTS.LAST_PRICE_SINGLE_LIMIT,
         )
 
         return float(resp_json["price"])
