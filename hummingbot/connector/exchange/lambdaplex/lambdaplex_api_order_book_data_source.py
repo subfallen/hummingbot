@@ -40,12 +40,14 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         )
         data = await rest_assistant.execute_request(
             url=web_utils.public_rest_url(path_url=CONSTANTS.LAST_PRICE_URL),
-            params={"sybmols": ",".join(exchange_pairs)},
+            params={"symbols": ",".join(exchange_pairs)},
             method=RESTMethod.GET,
             throttler_limit_id=CONSTANTS.LAST_PRICE_MULTI_LIMIT,
         )
         response = {
-            await self._connector.trading_pair_associated_to_exchange_symbol(symbol=entry["symbol"]): float(entry["price"])
+            await self._connector.trading_pair_associated_to_exchange_symbol(
+                symbol=entry["symbol"]
+            ): float(entry["price"])
             for entry in data
         }
         return response
