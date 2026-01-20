@@ -9,7 +9,7 @@ REST_URL = "https://api.lambdaplex.io/api/"
 WSS_URL = "wss://api.lambdaplex.io/api/{}/ws"
 API_VERSION = "v1"
 
-ORDER_ID_MAX_LEN = None
+ORDER_ID_MAX_LEN = 32
 HBOT_ORDER_ID_PREFIX = ""
 
 RECEIVE_WINDOW = 5000
