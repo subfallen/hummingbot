@@ -52,7 +52,7 @@ class LambdaplexExchange(ExchangePyBase):
 
     @property
     def name(self) -> str:
-        return "lambdaplex"
+        return CONSTANTS.EXCHANGE_NAME
 
     @property
     def authenticator(self) -> AuthBase:

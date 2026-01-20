@@ -3,6 +3,7 @@ from decimal import Decimal
 from pydantic import ConfigDict, Field, SecretStr
 
 from hummingbot.client.config.config_data_types import BaseConnectorConfigMap
+from hummingbot.connector.exchange.lambdaplex import lambdaplex_constants as CONSTANTS
 from hummingbot.core.data_type.trade_fee import TradeFeeSchema
 
 CENTRALIZED = True
@@ -16,7 +17,7 @@ DEFAULT_FEES = TradeFeeSchema(
 
 
 class LambdaplexConfigMap(BaseConnectorConfigMap):
-    connector: str = "lambdaplex"
+    connector: str = CONSTANTS.EXCHANGE_NAME
     lambdaplex_api_key: SecretStr = Field(
         default=...,
         json_schema_extra={
@@ -35,7 +36,7 @@ class LambdaplexConfigMap(BaseConnectorConfigMap):
             "prompt_on_new": True,
         }
     )
-    model_config = ConfigDict(title="lambdaplex")
+    model_config = ConfigDict(title=CONSTANTS.EXCHANGE_NAME)
 
 
 KEYS = LambdaplexConfigMap.model_construct()

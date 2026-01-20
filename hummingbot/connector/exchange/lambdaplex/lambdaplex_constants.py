@@ -5,6 +5,8 @@ from hummingbot.core.data_type.in_flight_order import OrderState
 
 DEFAULT_DOMAIN = "com"
 
+EXCHANGE_NAME = "lambdaplex"
+
 REST_URL = "https://api.lambdaplex.io/api/"
 WSS_URL = "wss://api.lambdaplex.io/api/{}/ws"
 API_VERSION = "v1"
