@@ -18,6 +18,8 @@ if TYPE_CHECKING:
 
 
 class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
+    _next_ws_message_id: int = 1
+
     def __init__(
         self,
         trading_pairs: List[str],
@@ -29,6 +31,7 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         self._trade_messages_queue_key = CONSTANTS.TRADE_EVENT_TYPE
         self._diff_messages_queue_key = CONSTANTS.DIFF_EVENT_TYPE
         self._api_factory = api_factory
+        self._next_message_id = 1
 
     async def get_last_traded_prices(self, trading_pairs: List[str], domain: Optional[str] = None) -> Dict[str, float]:
         rest_assistant = await self._api_factory.get_rest_assistant()
@@ -67,6 +70,44 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         )
 
         return data
+
+    async def subscribe_to_trading_pair(self, trading_pair: str) -> bool:
+        success = True
+
+        if self._ws_assistant is None:
+            self.logger().warning(f"Cannot subscribe to {trading_pair}: WebSocket not connected")
+            success = False
+        elif trading_pair in self._trading_pairs:
+            self.logger().warning(f"{trading_pair} already subscribed. Ignoring request.")
+        else:
+            try:
+                await self._subscribe_to_trading_pairs(ws=self._ws_assistant, trading_pairs=[trading_pair])
+                self.add_trading_pair(trading_pair)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                success = False
+
+        return success
+
+    async def unsubscribe_from_trading_pair(self, trading_pair: str) -> bool:
+        success = True
+
+        if self._ws_assistant is None:
+            self.logger().warning(f"Cannot unsubscribe from {trading_pair}: WebSocket not connected")
+            success = False
+        elif trading_pair not in self._trading_pairs:
+            self.logger().warning(f"{trading_pair} not subscribed. Ignoring request.")
+        else:
+            try:
+                await self._unsubscribe_to_trading_pairs(ws=self._ws_assistant, trading_pairs=[trading_pair])
+                self.remove_trading_pair(trading_pair)
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                success = False
+
+        return success
 
     async def _parse_trade_message(self, raw_message: Dict[str, Any], message_queue: asyncio.Queue):
         trading_pair: str = await self._connector.trading_pair_associated_to_exchange_symbol(raw_message["s"])
@@ -125,39 +166,63 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
         return ws
 
     async def _subscribe_channels(self, ws: WSAssistant):
+        await self._subscribe_to_trading_pairs(ws=ws, trading_pairs=self._trading_pairs)
+
+    async def _subscribe_to_trading_pairs(self, ws: WSAssistant, trading_pairs: list[str]):
         try:
-            trade_params = []
-            depth_params = []
-            for trading_pair in self._trading_pairs:
-                symbol = await self._connector.exchange_symbol_associated_to_pair(trading_pair=trading_pair)
-                trade_params.append(f"{symbol}@trade")
-                depth_params.append(f"{symbol}@depth@100ms")
-            payload = {
-                "method": "subscribe",
-                "params": trade_params,
-                "id": 1
-            }
-            subscribe_trade_request: WSJSONRequest = WSJSONRequest(payload=payload)
-
-            payload = {
-                "method": "subscribe",
-                "params": depth_params,
-                "id": 2
-            }
-            subscribe_orderbook_request: WSJSONRequest = WSJSONRequest(payload=payload)
-
-            await ws.send(subscribe_trade_request)
-            await ws.send(subscribe_orderbook_request)
-
-            self.logger().info("Subscribed to public order book and trade channels...")
+            await self._send_sub_unsub_for_trading_pairs(ws=ws, trading_pairs=trading_pairs, subscribe=True)
+            self.logger().info(
+                f"Subscribed to public order book and trade channels for {', '.join(trading_pairs)}..."
+            )
         except asyncio.CancelledError:
             raise
         except Exception:
             self.logger().error(
-                "Unexpected error occurred subscribing to order book trading and delta streams...",
+                f"Unexpected error occurred subscribing to order book trading and delta streams for"
+                f" {', '.join(trading_pairs)}...",
                 exc_info=True
             )
             raise
+
+    async def _unsubscribe_to_trading_pairs(self, ws: WSAssistant, trading_pairs: list[str]):
+        try:
+            await self._send_sub_unsub_for_trading_pairs(ws=ws, trading_pairs=trading_pairs, subscribe=False)
+            self.logger().info(
+                f"Unsubscribed from public order book and trade channels for {', '.join(trading_pairs)}..."
+            )
+        except asyncio.CancelledError:
+            raise
+        except Exception:
+            self.logger().error(
+                f"Unexpected error occurred unsubscribing to order book trading and delta streams for"
+                f" {', '.join(trading_pairs)}...",
+                exc_info=True
+            )
+            raise
+
+    async def _send_sub_unsub_for_trading_pairs(self, ws: WSAssistant, trading_pairs: list[str], subscribe: bool):
+        trade_params = []
+        depth_params = []
+        for trading_pair in trading_pairs:
+            symbol = await self._connector.exchange_symbol_associated_to_pair(trading_pair=trading_pair)
+            trade_params.append(f"{symbol}@trade")
+            depth_params.append(f"{symbol}@depth@100ms")
+        payload = {
+            "method": "subscribe" if subscribe else "unsubscribe",
+            "params": trade_params,
+            "id": self._get_next_ws_message_id(),
+        }
+        trade_request: WSJSONRequest = WSJSONRequest(payload=payload)
+
+        payload = {
+            "method": "subscribe" if subscribe else "unsubscribe",
+            "params": depth_params,
+            "id": self._get_next_ws_message_id(),
+        }
+        orderbook_request: WSJSONRequest = WSJSONRequest(payload=payload)
+
+        await ws.send(trade_request)
+        await ws.send(orderbook_request)
 
     def _channel_originating_message(self, event_message: Dict[str, Any]) -> str:
         channel = ""
@@ -169,3 +234,9 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             elif event_type == CONSTANTS.TRADE_EVENT_TYPE:
                 channel = self._trade_messages_queue_key
         return channel
+
+    @classmethod
+    def _get_next_ws_message_id(cls) -> int:
+        current_id = cls._next_ws_message_id
+        cls._next_ws_message_id += 1
+        return current_id
