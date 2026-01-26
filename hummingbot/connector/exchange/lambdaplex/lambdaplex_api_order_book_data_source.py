@@ -100,7 +100,7 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             self.logger().warning(f"{trading_pair} not subscribed. Ignoring request.")
         else:
             try:
-                await self._unsubscribe_to_trading_pairs(ws=self._ws_assistant, trading_pairs=[trading_pair])
+                await self._unsubscribe_from_trading_pairs(ws=self._ws_assistant, trading_pairs=[trading_pair])
                 self.remove_trading_pair(trading_pair)
             except asyncio.CancelledError:
                 raise
@@ -184,7 +184,7 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             )
             raise
 
-    async def _unsubscribe_to_trading_pairs(self, ws: WSAssistant, trading_pairs: list[str]):
+    async def _unsubscribe_from_trading_pairs(self, ws: WSAssistant, trading_pairs: list[str]):
         try:
             await self._send_sub_unsub_for_trading_pairs(ws=ws, trading_pairs=trading_pairs, subscribe=False)
             self.logger().info(
@@ -194,8 +194,8 @@ class LambdaplexAPIOrderBookDataSource(OrderBookTrackerDataSource):
             raise
         except Exception:
             self.logger().error(
-                f"Unexpected error occurred unsubscribing to order book trading and delta streams for"
-                f" {', '.join(trading_pairs)}...",
+                f"Unexpected error occurred unsubscribing from order book trading and delta streams for"
+                f" {', '.join(trading_pairs)}.",
                 exc_info=True
             )
             raise

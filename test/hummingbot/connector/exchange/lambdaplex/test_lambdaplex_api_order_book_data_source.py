@@ -423,7 +423,7 @@ class LambdaplexAPIOrderBookDataSourceUnitTests(IsolatedAsyncioWrapperTestCase):
     async def test_subscribe_to_trading_pair_raises_cancel_exception(self):
         """Test that CancelledError is properly raised during subscription."""
         new_pair = "ETH-USDT"
-        ex_new_pair = "ETHUSDT"
+        ex_new_pair = "ETH-USDT"
 
         self.connector._set_trading_pair_symbol_map(
             bidict({self.ex_trading_pair: self.trading_pair, ex_new_pair: new_pair})
@@ -439,7 +439,7 @@ class LambdaplexAPIOrderBookDataSourceUnitTests(IsolatedAsyncioWrapperTestCase):
     async def test_subscribe_to_trading_pair_raises_exception_and_logs_error(self):
         """Test that exceptions during subscription are logged and return False."""
         new_pair = "ETH-USDT"
-        ex_new_pair = "ETHUSDT"
+        ex_new_pair = "ETH-USDT"
 
         self.connector._set_trading_pair_symbol_map(
             bidict({self.ex_trading_pair: self.trading_pair, ex_new_pair: new_pair})
@@ -546,8 +546,8 @@ class LambdaplexAPIOrderBookDataSourceUnitTests(IsolatedAsyncioWrapperTestCase):
         self.assertTrue(
             self._is_logged(
                 "ERROR",
-                f"Unexpected error occurred unsubscribing to order book trading and delta streams for"
-                f" {self.trading_pair}...",
+                f"Unexpected error occurred unsubscribing from order book trading and delta streams for"
+                f" {self.trading_pair}.",
             )
         )
 
