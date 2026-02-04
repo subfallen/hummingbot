@@ -36,6 +36,9 @@ PASSWORD="${PASSWORD:-}"
 API_KEY="${API_KEY:-}"
 PRIVATE_KEY="${PRIVATE_KEY:-}"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
+
 POSITIONAL=()
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -46,11 +49,15 @@ while [[ $# -gt 0 ]]; do
     --private-key)
       PRIVATE_KEY="$2"; shift 2 ;;
     --private-key-file)
-      if [[ ! -f "$2" ]]; then
-        echo "Private key file not found: $2" >&2
+      key_path="$2"
+      if [[ "$key_path" != /* ]]; then
+        key_path="${ROOT_DIR}/${key_path}"
+      fi
+      if [[ ! -f "$key_path" ]]; then
+        echo "Private key file not found: $key_path" >&2
         exit 2
       fi
-      PRIVATE_KEY="$(cat "$2")"
+      PRIVATE_KEY="$(cat "$key_path")"
       shift 2 ;;
     --python)
       PYTHON_BIN="$2"; shift 2 ;;
@@ -88,6 +95,8 @@ fi
 # If PRIVATE_KEY points to a file, read it
 if [[ -n "$PRIVATE_KEY" && -f "$PRIVATE_KEY" ]]; then
   PRIVATE_KEY="$(cat "$PRIVATE_KEY")"
+elif [[ -n "$PRIVATE_KEY" && -f "${ROOT_DIR}/${PRIVATE_KEY}" ]]; then
+  PRIVATE_KEY="$(cat "${ROOT_DIR}/${PRIVATE_KEY}")"
 fi
 
 if [[ -z "$PASSWORD" ]]; then
@@ -103,5 +112,6 @@ if [[ -z "$PRIVATE_KEY" ]]; then
   exit 2
 fi
 
+cd "$ROOT_DIR"
 PASSWORD="$PASSWORD" API_KEY="$API_KEY" PRIVATE_KEY="$PRIVATE_KEY" \
-  "$PYTHON_BIN" scripts/plex/auth_setup_lambdaplex.py
+  PYTHONPATH="$ROOT_DIR" "$PYTHON_BIN" scripts/plex/auth_setup_lambdaplex.py

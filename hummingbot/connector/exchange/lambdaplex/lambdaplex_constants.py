@@ -1,3 +1,4 @@
+import os
 import sys
 
 from hummingbot.core.api_throttler.data_types import LinkedLimitWeightPair, RateLimit
@@ -7,9 +8,9 @@ DEFAULT_DOMAIN = "com"
 
 EXCHANGE_NAME = "lambdaplex"
 
-REST_URL = "https://api.lambdaplex.io/api/"
-WSS_URL = "wss://api.lambdaplex.io/api/{}/ws"
-API_VERSION = "v1"
+REST_URL = os.getenv("LAMBDAPLEX_REST_URL", "https://api.lambdaplex.io/api/")
+WSS_URL = os.getenv("LAMBDAPLEX_WSS_URL", "wss://api.lambdaplex.io/api/{}/ws")
+API_VERSION = os.getenv("LAMBDAPLEX_API_VERSION", "v1")
 
 ORDER_ID_MAX_LEN = 32
 HBOT_ORDER_ID_PREFIX = ""

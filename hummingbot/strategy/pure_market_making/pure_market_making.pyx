@@ -1225,6 +1225,8 @@ cdef class PureMarketMakingStrategy(StrategyBase):
         cdef:
             list active_orders = self.market_info_to_active_orders.get(self._market_info, [])
             object price = self.get_price()
+        if price.is_nan() or price <= s_decimal_zero:
+            return
         active_orders = [order for order in active_orders
                          if order.client_order_id not in self.hanging_order_ids]
         for order in active_orders:
