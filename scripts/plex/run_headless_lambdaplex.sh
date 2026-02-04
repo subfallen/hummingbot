@@ -19,6 +19,7 @@ Optional:
   --rest-url             Override Lambdaplex REST base URL (env: LAMBDAPLEX_REST_URL)
   --wss-url              Override Lambdaplex WS base URL (env: LAMBDAPLEX_WSS_URL)
   --rate-oracle          Override rate oracle source (default: coin_gecko)
+  --reset-db             Delete the strategy DB before starting
   -h, --help             Show this help
 Notes:
   Assumes scripts/plex/auth_setup_lambdaplex.py has already been run.
@@ -46,6 +47,7 @@ HB_INSTANCE_ID_OVERRIDE=""
 LAMBDAPLEX_REST_URL_OVERRIDE=""
 LAMBDAPLEX_WSS_URL_OVERRIDE=""
 RATE_ORACLE_OVERRIDE="${RATE_ORACLE_OVERRIDE:-coin_gecko}"
+RESET_DB="false"
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/../.." && pwd)"
@@ -71,6 +73,8 @@ while [[ $# -gt 0 ]]; do
       LAMBDAPLEX_WSS_URL_OVERRIDE="$2"; shift 2 ;;
     --rate-oracle)
       RATE_ORACLE_OVERRIDE="$2"; shift 2 ;;
+    --reset-db)
+      RESET_DB="true"; shift ;;
     -h|--help)
       usage; exit 0 ;;
     --)
@@ -106,6 +110,14 @@ fi
 if [[ -z "$STRATEGY_FILE" ]]; then
   echo "Missing STRATEGY_FILE (use -s/--strategy or env STRATEGY_FILE)" >&2
   exit 2
+fi
+
+if [[ "$RESET_DB" == "true" ]]; then
+  db_base="${STRATEGY_FILE}"
+  db_base="${db_base%.yml}"
+  db_base="${db_base%.py}"
+  db_path="$ROOT_DIR/data/${db_base}.sqlite"
+  rm -f "$db_path" "$db_path-wal" "$db_path-shm"
 fi
 
 cd "$ROOT_DIR"
@@ -155,11 +167,11 @@ except (TypeError, ValueError):
 
 mqtt["mqtt_host"] = host
 mqtt["mqtt_port"] = port
-  mqtt["mqtt_autostart"] = True
-  data["mqtt_bridge"] = mqtt
+mqtt["mqtt_autostart"] = True
+data["mqtt_bridge"] = mqtt
 
-  instance_id = pick(os.environ.get("HB_INSTANCE_ID_OVERRIDE"), "HB_INSTANCE_ID", data.get("instance_id"), "lambdaplex-testbot")
-  data["instance_id"] = instance_id
+instance_id = pick(os.environ.get("HB_INSTANCE_ID_OVERRIDE"), "HB_INSTANCE_ID", data.get("instance_id"), "lambdaplex-testbot")
+data["instance_id"] = instance_id
 
 rate_oracle = os.environ.get("HB_RATE_ORACLE_OVERRIDE") or os.environ.get("RATE_ORACLE_OVERRIDE") or "coin_gecko"
 data["rate_oracle_source"] = {"name": rate_oracle}

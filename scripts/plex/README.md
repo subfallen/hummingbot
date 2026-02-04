@@ -37,6 +37,14 @@ scripts/plex/run_headless_lambdaplex.sh \
   abc123 conf_lambdaplex_pmm_qa.yml
 ```
 
+To start with a clean database (no durable order state), add:
+
+```bash
+scripts/plex/run_headless_lambdaplex.sh \
+  --reset-db \
+  abc123 conf_lambdaplex_pmm_qa.yml
+```
+
 ## Local Lambdaplex Environment Overrides
 
 The connector defaults to production endpoints. For local/dev, set:
