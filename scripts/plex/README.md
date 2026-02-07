@@ -29,6 +29,31 @@ PASSWORD=... STRATEGY_FILE=conf_lambdaplex_pmm_qa.yml \
 scripts/plex/run_headless_lambdaplex.sh "$PASSWORD" conf_lambdaplex_pmm_qa.yml
 ```
 
+## Docker (macOS) Quick Start
+
+If you prefer running Hummingbot + EMQX via Docker Compose on macOS, use:
+
+```bash
+# Start EMQX + Hummingbot (script strategy defaults to scripts/v2_with_controllers.py)
+scripts/plex/run_docker_lambdaplex.sh up \
+  -p 'abc123' \
+  --rest-url 'http://host.docker.internal:9393/api/' \
+  --wss-url 'ws://host.docker.internal:9393/api/{}/ws'
+
+# Tail logs
+scripts/plex/run_docker_lambdaplex.sh logs
+
+# Stop everything
+scripts/plex/run_docker_lambdaplex.sh down
+```
+
+To (re)encrypt connector secrets using the containerized environment:
+
+```bash
+scripts/plex/run_docker_lambdaplex.sh auth-setup \
+  -p 'abc123' -k 'lp_...' --private-key-file conf/keys/lambdaplex_private_key.pem
+```
+
 By default the headless script sets the rate oracle source to `coin_gecko`. You can override with:
 
 ```bash

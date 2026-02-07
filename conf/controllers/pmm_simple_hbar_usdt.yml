@@ -1,0 +1,28 @@
+# Minimal Market Making V2 controller config.
+#
+# Used by scripts/v2_with_controllers.py via conf/scripts/conf_v2_with_controllers.yml
+controller_type: market_making
+controller_name: pmm_simple
+
+connector_name: lambdaplex
+trading_pair: HBAR-USDT
+
+# Total quote to allocate across buy+sell levels (normalized across both sides).
+total_amount_quote: 20
+
+leverage: 1
+executor_refresh_time: 60
+cooldown_time: 15
+
+buy_spreads: "0.01,0.02"
+sell_spreads: "0.01,0.02"
+buy_amounts_pct: "50,50"
+sell_amounts_pct: "50,50"
+
+stop_loss: "0.03"
+take_profit: "0.02"
+time_limit: 2700
+take_profit_order_type: LIMIT
+
+position_rebalance_threshold_pct: "0.05"
+skip_rebalance: false

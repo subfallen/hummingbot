@@ -1,0 +1,5 @@
+# Script config for scripts/v2_with_controllers.py
+#
+# Files in controllers_config are resolved relative to conf/controllers/
+controllers_config:
+  - pmm_simple_hbar_usdt.yml

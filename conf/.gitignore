@@ -1,3 +1,8 @@
 *.yml
 *.json
 .password_verification
+
+# Allow-list non-secret, shareable templates used for Docker runs.
+!conf_client.docker.yml
+!scripts/conf_v2_with_controllers.yml
+!controllers/pmm_simple_hbar_usdt.yml

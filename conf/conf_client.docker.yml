@@ -1,0 +1,30 @@
+####################################
+###   client_config_map config   ###
+####################################
+
+# Namespace for MQTT topics will be:
+#   <mqtt_namespace>/<instance_id>/...
+instance_id: lambdaplex-docker
+
+fetch_pairs_from_all_exchanges: false
+log_level: INFO
+
+# Keep this relative so it works in-container (/home/hummingbot/logs) and on-host (./logs)
+log_file_path: logs
+
+# MQTT Bridge configuration.
+mqtt_bridge:
+  # Docker Desktop on macOS: reach host services via host.docker.internal.
+  # This assumes Mosquitto is already running on the host at 1883.
+  mqtt_host: host.docker.internal
+  mqtt_port: 1883
+  mqtt_username: ''
+  mqtt_password: ''
+  mqtt_namespace: hbot
+  mqtt_ssl: false
+  mqtt_logger: true
+  mqtt_notifier: true
+  mqtt_commands: true
+  mqtt_events: true
+  mqtt_external_events: true
+  mqtt_autostart: true

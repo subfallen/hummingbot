@@ -1,0 +1,38 @@
+services:
+  # Local MQTT broker for headless control/monitoring
+  emqx:
+    image: emqx/emqx:5
+    container_name: emqx
+    restart: unless-stopped
+    ports:
+      - "1883:1883"   # MQTT
+      - "18083:18083" # EMQX dashboard
+  hummingbot:
+    container_name: hummingbot
+    image: ${HB_IMAGE:?Set HB_IMAGE to the pushed image tag (e.g. us-docker.pkg.dev/.../hummingbot-lambdaplex:0.1.2)}
+    restart: unless-stopped
+    depends_on:
+      - emqx
+    volumes:
+      - ./conf:/home/hummingbot/conf
+      - ./logs:/home/hummingbot/logs
+      - ./data:/home/hummingbot/data
+      - ./certs:/home/hummingbot/certs
+      # Use a Docker-specific client config (so mqtt_host/log paths work in-container)
+      - ./conf/conf_client.docker.yml:/home/hummingbot/conf/conf_client.yml:ro
+    environment:
+      # Hummingbot quickstart (see /home/hummingbot/bin/hummingbot_quickstart.py)
+      - CONFIG_PASSWORD=${CONFIG_PASSWORD:?Set CONFIG_PASSWORD (Hummingbot encryption password)}
+      - CONFIG_FILE_NAME=${CONFIG_FILE_NAME:-v2_with_controllers.py}
+      - SCRIPT_CONFIG=${SCRIPT_CONFIG:-conf_v2_with_controllers.yml}
+      - HEADLESS_MODE=${HEADLESS_MODE:-true}
+      # Lambdaplex dev/prod endpoint overrides (optional).
+      # If unset, the connector's in-code defaults apply (production).
+      # For macOS host-local dev:
+      #   export LAMBDAPLEX_REST_URL="http://host.docker.internal:9393/api/"
+      #   export LAMBDAPLEX_WSS_URL="ws://host.docker.internal:9393/api/{}/ws"
+      - LAMBDAPLEX_REST_URL
+      - LAMBDAPLEX_WSS_URL
+      - LAMBDAPLEX_API_VERSION
+    tty: true
+    stdin_open: true
