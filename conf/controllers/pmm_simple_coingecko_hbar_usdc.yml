@@ -1,0 +1,42 @@
+# Minimal Market Making V2 controller config (CoinGecko reference price).
+#
+# Used by scripts/v2_with_controllers.py via conf/scripts/conf_v2_with_controllers.yml
+controller_type: market_making
+controller_name: pmm_simple_coingecko
+id: pmm_hbar_usdc
+
+connector_name: lambdaplex
+trading_pair: HBAR-USDC
+
+# CoinGecko token ids are not symbols. HBAR's id is "hedera-hashgraph".
+coin_gecko_token_id: hedera-hashgraph
+coin_gecko_vs_currency: usd
+# Optional: set a denominator token id to compute a cross price:
+# reference_price = (HBAR/USD) / (USDC/USD) ~= HBAR/USDC
+# coin_gecko_denominator_token_id: usd-coin
+# CoinGecko vs_currency list: https://api.coingecko.com/api/v3/simple/supported_vs_currencies
+coin_gecko_price_refresh_interval: 30.0
+coin_gecko_request_timeout: 10.0
+
+# Total quote to allocate across buy+sell levels (normalized across both sides).
+total_amount_quote: 2000
+
+leverage: 1
+executor_refresh_time: 60
+cooldown_time: 15
+
+# 10 levels per side, spreads widen roughly exponentially (tightest level ~10 bps).
+buy_spreads: "0.0010,0.0014,0.0018,0.0025,0.0033,0.0045,0.0061,0.0082,0.0111,0.0149"
+sell_spreads: "0.0010,0.0014,0.0018,0.0025,0.0033,0.0045,0.0061,0.0082,0.0111,0.0149"
+
+# Size increases with distance from mid (smaller near the spread, larger farther away).
+buy_amounts_pct: "1.50,1.88,2.35,2.94,3.67,4.59,5.74,7.17,8.96,11.20"
+sell_amounts_pct: "1.50,1.88,2.35,2.94,3.67,4.59,5.74,7.17,8.96,11.20"
+
+stop_loss: "0.03"
+take_profit: "0.02"
+time_limit: 2700
+take_profit_order_type: LIMIT
+
+position_rebalance_threshold_pct: "0.05"
+skip_rebalance: true

@@ -2,4 +2,5 @@
 #
 # Files in controllers_config are resolved relative to conf/controllers/
 controllers_config:
-  - pmm_simple_hbar_usdt.yml
+  - pmm_simple_coingecko_hbar_usdc.yml
+  - pmm_simple_coingecko_plex_hbar.yml

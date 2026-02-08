@@ -1,0 +1,40 @@
+# Minimal Market Making V2 controller config (CoinGecko reference price).
+#
+# Modeled on pmm_simple_coingecko_hbar_usdc.yml
+controller_type: market_making
+controller_name: pmm_simple_coingecko
+id: pmm_plex_hbar
+
+connector_name: lambdaplex
+trading_pair: PLEX-HBAR
+
+# CoinGecko token ids are not symbols. This config uses DOGE as a proxy numerator and HBAR as denominator:
+# reference_price = (DOGE/USD) / (HBAR/USD) ~= DOGE/HBAR
+coin_gecko_token_id: dogecoin
+coin_gecko_denominator_token_id: hedera-hashgraph
+coin_gecko_vs_currency: usd
+coin_gecko_price_refresh_interval: 30.0
+coin_gecko_request_timeout: 10.0
+
+# Total quote to allocate across buy+sell levels (normalized across both sides).
+total_amount_quote: 100000
+
+leverage: 1
+executor_refresh_time: 60
+cooldown_time: 15
+
+# 6 levels per side, spreads widen roughly exponentially (tightest level ~80 bps).
+buy_spreads: "0.0080,0.0108,0.0146,0.0197,0.0266,0.0359"
+sell_spreads: "0.0080,0.0108,0.0146,0.0197,0.0266,0.0359"
+
+# Size increases with distance from mid (smaller near the spread, larger farther away).
+buy_amounts_pct: "3.00,5.00,7.00,9.00,11.00,15.00"
+sell_amounts_pct: "3.00,5.00,7.00,9.00,11.00,15.00"
+
+stop_loss: "0.03"
+take_profit: "0.02"
+time_limit: 2700
+take_profit_order_type: LIMIT
+
+position_rebalance_threshold_pct: "0.05"
+skip_rebalance: true

@@ -14,10 +14,13 @@ leverage: 1
 executor_refresh_time: 60
 cooldown_time: 15
 
-buy_spreads: "0.01,0.02"
-sell_spreads: "0.01,0.02"
-buy_amounts_pct: "50,50"
-sell_amounts_pct: "50,50"
+# 10 levels per side, spreads widen roughly exponentially.
+buy_spreads: "0.0020,0.0027,0.0036,0.0049,0.0066,0.0090,0.0121,0.0163,0.0221,0.0298"
+sell_spreads: "0.0020,0.0027,0.0036,0.0049,0.0066,0.0090,0.0121,0.0163,0.0221,0.0298"
+
+# Size decays with distance from mid (proxying exponentially decaying fill probability).
+buy_amounts_pct: "11.20,8.96,7.17,5.74,4.59,3.67,2.94,2.35,1.88,1.50"
+sell_amounts_pct: "11.20,8.96,7.17,5.74,4.59,3.67,2.94,2.35,1.88,1.50"
 
 stop_loss: "0.03"
 take_profit: "0.02"
