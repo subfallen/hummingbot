@@ -1,3 +1,4 @@
+import os
 import time
 from decimal import Decimal
 from typing import List, Optional
@@ -81,6 +82,47 @@ class PMMSimpleCoinGeckoController(PMMSimpleController):
         self._last_fetch_success_ts: float = 0.0  # monotonic seconds
         self._cooloff_until_ts: float = 0.0  # monotonic seconds (only used after HTTP 429)
 
+    def _coingecko_simple_price_url_and_headers(self):
+        """
+        Resolve the CoinGecko Simple Price endpoint URL and headers.
+
+        We prefer reusing CoinGecko API key/tier configured on the global RateOracle (so you only configure secrets
+        once). This also lets paid tiers use the pro API hostname and required auth headers.
+        """
+        try:
+            from hummingbot.core.rate_oracle.rate_oracle import RateOracle
+            from hummingbot.core.rate_oracle.sources.coin_gecko_rate_source import CoinGeckoRateSource
+
+            source = RateOracle.get_instance().source
+            if isinstance(source, CoinGeckoRateSource) and source.api_key:
+                tier = source.api_tier
+                header = tier.value.header
+                if header:
+                    return f"{tier.value.base_url}/simple/price", {header: source.api_key}
+        except Exception:
+            # RateOracle isn't available or not configured for CoinGecko. Fall back to env vars / public API below.
+            pass
+
+        # Fallback for running outside the full client config flow (or when RateOracle is not CoinGecko).
+        api_key = os.environ.get("COINGECKO_API_KEY", "").strip()
+        api_tier_raw = os.environ.get("COINGECKO_API_TIER", "").strip().upper()
+        if api_key and api_tier_raw:
+            try:
+                from hummingbot.data_feed.coin_gecko_data_feed.coin_gecko_constants import CoinGeckoAPITier
+
+                if api_tier_raw == "BASIC":
+                    tier = CoinGeckoAPITier.PRO
+                else:
+                    tier = CoinGeckoAPITier[api_tier_raw]
+
+                header = tier.value.header
+                if header:
+                    return f"{tier.value.base_url}/simple/price", {header: api_key}
+            except Exception:
+                pass
+
+        return self._COINGECKO_SIMPLE_PRICE_URL, {}
+
     async def update_processed_data(self):
         now = time.monotonic()
 
@@ -132,12 +174,14 @@ class PMMSimpleCoinGeckoController(PMMSimpleController):
             raise ValueError("coin_gecko_vs_currency must be set")
 
         token_ids = [token_id] + ([denom_token_id] if denom_token_id else [])
+        url, headers = self._coingecko_simple_price_url_and_headers()
 
         timeout = aiohttp.ClientTimeout(total=self.config.coin_gecko_request_timeout)
         async with aiohttp.ClientSession(timeout=timeout) as session:
             async with session.get(
-                self._COINGECKO_SIMPLE_PRICE_URL,
+                url,
                 params={"ids": ",".join(token_ids), "vs_currencies": vs_currency},
+                headers=headers if headers else None,
             ) as resp:
                 if resp.status != 200:
                     # Keep response body short in logs (CoinGecko often returns verbose JSON).

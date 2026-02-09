@@ -2,7 +2,7 @@
 set -euo pipefail
 
 usage() {
-  echo "Usage: ./docker-run-lambdaplex-v2.sh [--rm-image] \\" >&2
+  echo "Usage: ./docker-run-lambdaplex-v2.sh [--rm-image] [--client-conf <file>] [--mount-local-py] \\" >&2
   echo "  <image:tag> \\" >&2
   echo "  <hb_password> \\" >&2
   echo "  <lambdaplex_api_key> \\" >&2
@@ -12,6 +12,9 @@ usage() {
   echo >&2
   echo "Options:" >&2
   echo "  --rm-image  Remove the local copy of <image:tag> before running (default: keep)" >&2
+  echo "  --client-conf  Path to a conf_client*.yml file to mount into the container as conf/conf_client.yml" >&2
+  echo "               Default: conf/conf_client.docker.local.yml if present, else conf/conf_client.docker.yml" >&2
+  echo "  --mount-local-py  Bind-mount select Python sources from this repo into the container (dev workaround)" >&2
   echo >&2
   echo "Example:" >&2
   echo "  ./docker-run-lambdaplex-v2.sh --rm-image \\" >&2
@@ -24,10 +27,25 @@ usage() {
 }
 
 RM_IMAGE="false"
+CLIENT_CONF_OVERRIDE=""
+MOUNT_LOCAL_PY="false"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --rm-image|--remove-image)
       RM_IMAGE="true"
+      shift
+      ;;
+    --client-conf)
+      if [[ $# -lt 2 ]]; then
+        echo "Missing value for --client-conf" >&2
+        usage
+        exit 2
+      fi
+      CLIENT_CONF_OVERRIDE="$2"
+      shift 2
+      ;;
+    --mount-local-py|--local-py)
+      MOUNT_LOCAL_PY="true"
       shift
       ;;
     -h|--help)
@@ -63,6 +81,22 @@ SCRIPT_CONF_YML="$6"
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 NAME="hummingbot-lambdaplex-v2"
+DEFAULT_CLIENT_CONF="${ROOT_DIR}/conf/conf_client.docker.yml"
+LOCAL_CLIENT_CONF="${ROOT_DIR}/conf/conf_client.docker.local.yml"
+CLIENT_CONF="${DEFAULT_CLIENT_CONF}"
+if [[ -n "${CLIENT_CONF_OVERRIDE}" ]]; then
+  if [[ "${CLIENT_CONF_OVERRIDE}" != /* ]]; then
+    CLIENT_CONF="${ROOT_DIR}/${CLIENT_CONF_OVERRIDE}"
+  else
+    CLIENT_CONF="${CLIENT_CONF_OVERRIDE}"
+  fi
+elif [[ -f "${LOCAL_CLIENT_CONF}" ]]; then
+  CLIENT_CONF="${LOCAL_CLIENT_CONF}"
+fi
+if [[ ! -f "${CLIENT_CONF}" ]]; then
+  echo "Client config not found: ${CLIENT_CONF}" >&2
+  exit 2
+fi
 
 if ! docker info >/dev/null 2>&1; then
   echo "Docker daemon not available. Start Docker Desktop and retry." >&2
@@ -111,7 +145,7 @@ mkdir -p "${ROOT_DIR}/conf/connectors" "${ROOT_DIR}/logs" "${ROOT_DIR}/data"
 echo "1/2 Writing encrypted Lambdaplex credentials to conf/connectors/lambdaplex.yml"
 docker run --rm \
   -v "${ROOT_DIR}/conf:/home/hummingbot/conf" \
-  -v "${ROOT_DIR}/conf/conf_client.docker.yml:/home/hummingbot/conf/conf_client.yml:ro" \
+  -v "${CLIENT_CONF}:/home/hummingbot/conf/conf_client.yml:ro" \
   -v "${PRIVATE_KEY_FILE}:/tmp/lambdaplex_private_key.pem:ro" \
   -e PASSWORD="${HB_PASSWORD}" \
   -e API_KEY="${LAMBDAPLEX_API_KEY}" \
@@ -121,7 +155,7 @@ docker run --rm \
 echo "2/2 Starting headless Hummingbot container: $NAME"
 docker run -d --name "$NAME" \
   -v "${ROOT_DIR}/conf:/home/hummingbot/conf" \
-  -v "${ROOT_DIR}/conf/conf_client.docker.yml:/home/hummingbot/conf/conf_client.yml:ro" \
+  -v "${CLIENT_CONF}:/home/hummingbot/conf/conf_client.yml:ro" \
   -v "${ROOT_DIR}/logs:/home/hummingbot/logs" \
   -v "${ROOT_DIR}/data:/home/hummingbot/data" \
   -e CONFIG_PASSWORD="${HB_PASSWORD}" \

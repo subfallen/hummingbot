@@ -100,3 +100,8 @@ coverage.xml
 
 **/.claude/settings.local.json
 conf/keys/
+
+# Local client configs (may contain secrets)
+conf/conf_client.yml
+conf/conf_client*.local.yml
+conf/conf_client*.secrets.yml

@@ -527,9 +527,13 @@ class CoinGeckoRateSourceMode(RateSourceModeBase):
     def validate_api_tier(cls, v: str):
         from hummingbot.data_feed.coin_gecko_data_feed.coin_gecko_constants import CoinGeckoAPITier
         valid_tiers = [tier.name for tier in CoinGeckoAPITier]
-        if v.upper() not in valid_tiers:
+        tier = (v or "").strip().upper()
+        # CoinGecko plan naming doesn't always match our internal tiers; accept common aliases.
+        if tier == "BASIC":
+            tier = CoinGeckoAPITier.PRO.name
+        if tier not in valid_tiers:
             return CoinGeckoAPITier.PUBLIC.name
-        return v.upper()
+        return tier
 
     @model_validator(mode="after")
     def post_validations(self):
@@ -884,7 +888,13 @@ class ClientConfigMap(BaseClientModel):
         if isinstance(v, tuple(RATE_SOURCE_MODES.values())):
             sub_model = v
         elif isinstance(v, dict):
-            sub_model = RATE_SOURCE_MODES[v["name"]].model_construct()
+            name = v.get("name")
+            if name not in RATE_SOURCE_MODES:
+                raise ValueError(
+                    f"Invalid rate source in dict. Choose from: {list(RATE_SOURCE_MODES.keys())}."
+                )
+            # Validate and keep any provider-specific settings (e.g. CoinGecko api_key/api_tier).
+            sub_model = RATE_SOURCE_MODES[name].model_validate(v)
         elif isinstance(v, str):
             sub_model = RATE_SOURCE_MODES[v].model_construct()
         elif v not in RATE_SOURCE_MODES:
