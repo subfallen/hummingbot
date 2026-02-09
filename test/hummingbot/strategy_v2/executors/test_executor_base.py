@@ -18,7 +18,29 @@ from hummingbot.core.event.events import (
 from hummingbot.strategy.script_strategy_base import ScriptStrategyBase
 from hummingbot.strategy_v2.executors.data_types import ExecutorConfigBase
 from hummingbot.strategy_v2.executors.executor_base import ExecutorBase
+from hummingbot.strategy_v2.executors.position_executor.data_types import PositionExecutorConfig
 from hummingbot.strategy_v2.models.base import RunnableStatus
+
+
+class _NaNMetricsExecutor(ExecutorBase):
+    async def validate_sufficient_balance(self):
+        return None
+
+    def early_stop(self, keep_position: bool = False):
+        return None
+
+    def get_net_pnl_quote(self) -> Decimal:
+        return Decimal("NaN")
+
+    def get_net_pnl_pct(self) -> Decimal:
+        return Decimal("NaN")
+
+    def get_cum_fees_quote(self) -> Decimal:
+        return Decimal("NaN")
+
+    @property
+    def filled_amount_quote(self):
+        return Decimal("NaN")
 
 
 class TestExecutorBase(IsolatedAsyncioWrapperTestCase, LoggerMixinForTest):
@@ -169,3 +191,20 @@ class TestExecutorBase(IsolatedAsyncioWrapperTestCase, LoggerMixinForTest):
     def test_get_in_flight_order(self):
         in_flight_orders = self.component.get_in_flight_order("connector1", "OID-BUY-1")
         self.assertEqual(in_flight_orders, None)
+
+    def test_executor_info_sanitizes_nan_metrics(self):
+        config = PositionExecutorConfig(
+            id="test",
+            timestamp=1234567890,
+            connector_name="connector1",
+            trading_pair="ETH-USDT",
+            side=TradeType.BUY,
+            amount=Decimal("1"),
+        )
+        executor = _NaNMetricsExecutor(strategy=self.strategy, connectors=["connector1"], config=config, update_interval=0.5)
+        executor_info = executor.executor_info
+        self.assertEqual(Decimal("0"), executor_info.net_pnl_pct)
+        self.assertEqual(Decimal("0"), executor_info.net_pnl_quote)
+        self.assertEqual(Decimal("0"), executor_info.cum_fees_quote)
+        self.assertEqual(Decimal("0"), executor_info.filled_amount_quote)
+        self.assertFalse(executor_info.is_trading)

@@ -80,7 +80,15 @@ class ExecutorBase(RunnableBase):
         """
         Returns whether the executor is trading.
         """
-        return self.is_active and self.net_pnl_quote != 0
+        # Some executors use Decimal("NaN") as a sentinel while metrics are not yet available.
+        # Treat it as 0 to avoid downstream logic misclassifying the executor as "trading".
+        try:
+            net_pnl_quote = self.net_pnl_quote
+            if net_pnl_quote.is_nan() or net_pnl_quote.is_infinite():
+                net_pnl_quote = Decimal("0")
+        except Exception:
+            net_pnl_quote = Decimal("0")
+        return self.is_active and net_pnl_quote != 0
 
     @property
     def filled_amount_quote(self):
@@ -108,6 +116,25 @@ class ExecutorBase(RunnableBase):
         """
         Returns the executor info.
         """
+        # Pydantic rejects Decimal('NaN')/'Infinity' unless allow_inf_nan is enabled.
+        # Executors may transiently emit these sentinel values, so normalize here to keep reporting stable.
+        def _finite_decimal(value) -> Decimal:
+            if value is None:
+                return Decimal("0")
+            if not isinstance(value, Decimal):
+                try:
+                    value = Decimal(str(value))
+                except Exception:
+                    return Decimal("0")
+            if value.is_nan() or value.is_infinite():
+                return Decimal("0")
+            return value
+
+        net_pnl_pct = _finite_decimal(self.net_pnl_pct)
+        net_pnl_quote = _finite_decimal(self.net_pnl_quote)
+        cum_fees_quote = _finite_decimal(self.cum_fees_quote)
+        filled_amount_quote = _finite_decimal(self.filled_amount_quote)
+
         ei = ExecutorInfo(
             id=self.config.id,
             timestamp=self.config.timestamp,
@@ -116,19 +143,15 @@ class ExecutorBase(RunnableBase):
             close_type=self.close_type,
             close_timestamp=self.close_timestamp,
             config=self.config,
-            net_pnl_pct=self.net_pnl_pct,
-            net_pnl_quote=self.net_pnl_quote,
-            cum_fees_quote=self.cum_fees_quote,
-            filled_amount_quote=self.filled_amount_quote,
+            net_pnl_pct=net_pnl_pct,
+            net_pnl_quote=net_pnl_quote,
+            cum_fees_quote=cum_fees_quote,
+            filled_amount_quote=filled_amount_quote,
             is_active=self.is_active,
             is_trading=self.is_trading,
             custom_info=self.get_custom_info(),
             controller_id=self.config.controller_id,
         )
-        ei.filled_amount_quote = ei.filled_amount_quote if not ei.filled_amount_quote.is_nan() else Decimal("0")
-        ei.net_pnl_quote = ei.net_pnl_quote if not ei.net_pnl_quote.is_nan() else Decimal("0")
-        ei.cum_fees_quote = ei.cum_fees_quote if not ei.cum_fees_quote.is_nan() else Decimal("0")
-        ei.net_pnl_pct = ei.net_pnl_pct if not ei.net_pnl_pct.is_nan() else Decimal("0")
         return ei
 
     def get_custom_info(self) -> Dict:

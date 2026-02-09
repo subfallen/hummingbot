@@ -142,6 +142,15 @@ fi
 
 mkdir -p "${ROOT_DIR}/conf/connectors" "${ROOT_DIR}/logs" "${ROOT_DIR}/data"
 
+# Clear local SQLite DB(s) so the bot does not resurrect stale tracked orders on startup.
+# Hummingbot chooses the DB name based on the strategy/script config name, so we remove any *.sqlite artifacts.
+echo "Clearing local SQLite DB files under ${ROOT_DIR}/data"
+rm -f \
+  "${ROOT_DIR}/data/"*.sqlite \
+  "${ROOT_DIR}/data/"*.sqlite-wal \
+  "${ROOT_DIR}/data/"*.sqlite-shm \
+  "${ROOT_DIR}/data/"*.sqlite-journal
+
 echo "1/2 Writing encrypted Lambdaplex credentials to conf/connectors/lambdaplex.yml"
 docker run --rm \
   -v "${ROOT_DIR}/conf:/home/hummingbot/conf" \
