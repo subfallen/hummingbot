@@ -217,13 +217,24 @@ class PositionExecutor(ExecutorBase):
 
         :return: The trade pnl percentage.
         """
-        if self.open_filled_amount != Decimal("0") and self.close_type not in [CloseType.FAILED, CloseType.POSITION_HOLD]:
-            if self.config.side == TradeType.BUY:
-                return (self.close_price - self.entry_price) / self.entry_price
-            else:
-                return (self.entry_price - self.close_price) / self.entry_price
-        else:
+        if self.open_filled_amount == Decimal("0") or self.close_type in [CloseType.FAILED, CloseType.POSITION_HOLD]:
             return Decimal("0")
+
+        entry_price = self.entry_price
+        close_price = self.close_price
+
+        # Prices may temporarily be Decimal("NaN") (e.g., empty order book). Avoid propagating NaNs into PnL metrics,
+        # because comparing Decimals with NaN raises decimal.InvalidOperation.
+        if (entry_price is None or close_price is None or
+                entry_price.is_nan() or entry_price.is_infinite() or
+                close_price.is_nan() or close_price.is_infinite() or
+                entry_price == Decimal("0")):
+            return Decimal("0")
+
+        if self.config.side == TradeType.BUY:
+            return (close_price - entry_price) / entry_price
+        else:
+            return (entry_price - close_price) / entry_price
 
     @property
     def trade_pnl_quote(self) -> Decimal:
@@ -240,7 +251,14 @@ class PositionExecutor(ExecutorBase):
 
         :return: The net pnl in quote asset.
         """
-        return self.trade_pnl_quote - self.cum_fees_quote
+        trade_pnl_quote = self.trade_pnl_quote
+        cum_fees_quote = self.cum_fees_quote
+        # Keep metrics finite even when inputs temporarily emit NaN/Infinity.
+        if trade_pnl_quote.is_nan() or trade_pnl_quote.is_infinite():
+            trade_pnl_quote = Decimal("0")
+        if cum_fees_quote.is_nan() or cum_fees_quote.is_infinite():
+            cum_fees_quote = Decimal("0")
+        return trade_pnl_quote - cum_fees_quote
 
     def get_cum_fees_quote(self) -> Decimal:
         """
@@ -257,7 +275,19 @@ class PositionExecutor(ExecutorBase):
 
         :return: The net pnl percentage.
         """
-        return self.net_pnl_quote / self.open_filled_amount_quote if self.open_filled_amount_quote != Decimal("0") else Decimal("0")
+        open_filled_amount_quote = self.open_filled_amount_quote
+        if (open_filled_amount_quote.is_nan() or open_filled_amount_quote.is_infinite()
+                or open_filled_amount_quote == Decimal("0")):
+            return Decimal("0")
+
+        net_pnl_quote = self.net_pnl_quote
+        if net_pnl_quote.is_nan() or net_pnl_quote.is_infinite():
+            return Decimal("0")
+
+        net_pnl_pct = net_pnl_quote / open_filled_amount_quote
+        if net_pnl_pct.is_nan() or net_pnl_pct.is_infinite():
+            return Decimal("0")
+        return net_pnl_pct
 
     @property
     def end_time(self) -> Optional[float]:

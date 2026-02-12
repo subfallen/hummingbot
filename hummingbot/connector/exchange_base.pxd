@@ -13,6 +13,7 @@ cdef class ExchangeBase(ConnectorBase):
         object _budget_checker
         object _trading_pair_symbol_map
         object _mapping_initialization_lock
+        object _empty_order_book_warning_ts
 
     cdef str c_buy(self, str trading_pair, object amount, object order_type= *, object price= *, dict kwargs= *)
     cdef str c_sell(self, str trading_pair, object amount, object order_type= *, object price= *, dict kwargs= *)

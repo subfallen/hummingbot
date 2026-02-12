@@ -296,6 +296,55 @@ class TestPositionExecutor(IsolatedAsyncioWrapperTestCase):
 
     @patch.object(PositionExecutor, "get_trading_rules")
     @patch("hummingbot.strategy_v2.executors.position_executor.position_executor.PositionExecutor.get_price",
+           return_value=Decimal("NaN"))
+    async def test_control_position_active_position_with_nan_market_price_does_not_crash(self, _, trading_rules_mock):
+        trading_rules = MagicMock(spec=TradingRule)
+        trading_rules.min_order_size = Decimal("0.1")
+        trading_rules.min_notional_size = Decimal("1")
+        trading_rules_mock.return_value = trading_rules
+
+        position_config = self.get_position_config_market_long_tp_market()
+        position_executor = self.get_position_executor_running_from_config(position_config)
+        position_executor._open_order = TrackedOrder(order_id="OID-BUY-1")
+        position_executor._open_order.order = InFlightOrder(
+            client_order_id="OID-BUY-1",
+            exchange_order_id="EOID4",
+            trading_pair=position_config.trading_pair,
+            order_type=position_config.triple_barrier_config.open_order_type,
+            trade_type=TradeType.BUY,
+            amount=position_config.amount,
+            price=position_config.entry_price,
+            creation_timestamp=1640001112.223,
+            initial_state=OrderState.FILLED
+        )
+        position_executor._open_order.order.update_with_trade_update(
+            TradeUpdate(
+                trade_id="1",
+                client_order_id="OID-BUY-1",
+                exchange_order_id="EOID4",
+                trading_pair=position_config.trading_pair,
+                fill_price=position_config.entry_price,
+                fill_base_amount=position_config.amount,
+                fill_quote_amount=position_config.amount * position_config.entry_price,
+                fee=AddedToCostTradeFee(flat_fees=[TokenAmount(token="USDT", amount=Decimal("0.2"))]),
+                fill_timestamp=10,
+            )
+        )
+
+        self.strategy.connectors["binance"].quantize_order_amount.return_value = position_config.amount
+        await position_executor.control_task()
+
+        # No close order should be placed when market price is unavailable.
+        self.assertIsNone(position_executor._close_order)
+        self.assertIsNone(position_executor._take_profit_limit_order)
+
+        # Metrics should remain finite to avoid decimal.InvalidOperation on comparisons.
+        self.assertFalse(position_executor.net_pnl_pct.is_nan())
+        self.assertFalse(position_executor.net_pnl_quote.is_nan())
+        self.assertEqual(position_executor.net_pnl_pct, Decimal("-0.002"))
+
+    @patch.object(PositionExecutor, "get_trading_rules")
+    @patch("hummingbot.strategy_v2.executors.position_executor.position_executor.PositionExecutor.get_price",
            return_value=Decimal("100"))
     async def test_control_position_active_position_close_by_time_limit(self, _, trading_rules_mock):
         trading_rules = MagicMock(spec=TradingRule)

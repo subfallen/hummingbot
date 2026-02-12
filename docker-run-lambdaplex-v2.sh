@@ -142,6 +142,10 @@ fi
 
 mkdir -p "${ROOT_DIR}/conf/connectors" "${ROOT_DIR}/logs" "${ROOT_DIR}/data"
 
+# Clear local logs so each run starts with a clean slate.
+echo "Clearing local log files under ${ROOT_DIR}/logs"
+find "${ROOT_DIR}/logs" -mindepth 1 -maxdepth 1 ! -name ".gitignore" -exec rm -rf {} +
+
 # Clear local SQLite DB(s) so the bot does not resurrect stale tracked orders on startup.
 # Hummingbot chooses the DB name based on the strategy/script config name, so we remove any *.sqlite artifacts.
 echo "Clearing local SQLite DB files under ${ROOT_DIR}/data"
